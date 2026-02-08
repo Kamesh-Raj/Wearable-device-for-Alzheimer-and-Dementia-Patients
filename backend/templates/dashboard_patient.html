@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card" style="text-align: center; padding: 3rem;">
+    <h1>Hello, {{ patient.name }}</h1>
+    <p id="clock" style="font-size: 2rem; font-weight: bold; margin: 1rem 0;"></p>
+
+    <div class="alert-badge alert-success" style="font-size: 1.5rem; padding: 0.5rem 1rem;">
+        You are in a SAFE ZONE
+    </div>
+</div>
+
+<div class="grid-2-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+    <!-- Reminders -->
+    <div class="glass-card">
+        <h2>Today's Reminders</h2>
+        {% if reminders %}
+        <ul style="list-style: none; padding: 0;">
+            {% for r in reminders %}
+            <li
+                style="background: rgba(255,255,255,0.05); padding: 1rem; margin-bottom: 0.5rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>{{ r.title }}</strong>
+                    <br>
+                    <span style="color: var(--text-muted);">{{ r.scheduled_time }}</span>
+                </div>
+                {% if r.is_active %}
+                <span class="alert-badge alert-medium">Due</span>
+                {% else %}
+                <span class="alert-badge alert-success">Done</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No reminders for today.</p>
+        {% endif %}
+    </div>
+
+    <!-- Emergency / Quick Actions -->
+    <div class="glass-card">
+        <h2>Quick Actions</h2>
+        <button class="btn-primary"
+            style="width: 100%; background: var(--danger); font-size: 1.25rem; padding: 1.5rem; margin-bottom: 1rem;"
+            onclick="callHelp()">
+            🆘 CALL FOR HELP
+        </button>
+
+        <button class="btn-outline" style="width: 100%;" onclick="speakStatus()">
+            🔊 Speak My Status
+        </button>
+    </div>
+</div>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function callHelp() {
+        if (confirm("Are you sure you want to alert your caregiver?")) {
+            // API call to create alert
+            alert("Alert sent to caregiver!");
+        }
+    }
+
+    function speakStatus() {
+        const msg = new SpeechSynthesisUtterance("You are safe at home. Next medication is at 2 PM.");
+        window.speechSynthesis.speak(msg);
+    }
+</script>
+{% endblock %}

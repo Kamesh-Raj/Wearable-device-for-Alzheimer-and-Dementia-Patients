@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.vscode/
+*.db
+*.log
+hardware/output/
+
+# User specific requests - Training Data
+ai_models/training/data/
+!ai_models/training/data/dat.md
+hardware/training_data/
+!hardware/training_data/DATASET_INFO.md
+
+# Large Data Files
+data/
+*.tfrecords
+*.h5
+*.pyd
+*.dll
+*.lib
+
+# Ignore uploaded user content
+backend/static/uploads/

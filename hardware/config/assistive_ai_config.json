@@ -1,0 +1,125 @@
+{
+  "patient_name": "Patient",
+  "patient_id": "P001",
+  "caregivers": [
+    {
+      "name": "Primary Caregiver",
+      "relationship": "Family Member",
+      "contact": "+1234567890",
+      "priority": 1
+    }
+  ],
+  "medication_schedule": [
+    {
+      "name": "Morning Medication",
+      "time": "08:00",
+      "dosage": "As prescribed",
+      "reminder_enabled": true
+    },
+    {
+      "name": "Afternoon Medication",
+      "time": "14:00",
+      "dosage": "As prescribed",
+      "reminder_enabled": true
+    },
+    {
+      "name": "Evening Medication",
+      "time": "20:00",
+      "dosage": "As prescribed",
+      "reminder_enabled": true
+    }
+  ],
+  "activity_schedule": [
+    {
+      "name": "Morning Walk",
+      "time": "09:00",
+      "duration_minutes": 30,
+      "reminder_enabled": true
+    },
+    {
+      "name": "Breakfast",
+      "time": "08:30",
+      "reminder_enabled": true
+    },
+    {
+      "name": "Lunch",
+      "time": "12:30",
+      "reminder_enabled": true
+    },
+    {
+      "name": "Afternoon Rest",
+      "time": "15:00",
+      "duration_minutes": 60,
+      "reminder_enabled": false
+    },
+    {
+      "name": "Dinner",
+      "time": "18:30",
+      "reminder_enabled": true
+    }
+  ],
+  "emergency_contacts": [
+    {
+      "name": "Emergency Contact 1",
+      "phone": "+1234567890",
+      "relationship": "Family"
+    },
+    {
+      "name": "Emergency Contact 2",
+      "phone": "+0987654321",
+      "relationship": "Neighbor"
+    }
+  ],
+  "preferences": {
+    "reminder_style": "gentle",
+    "voice_enabled": true,
+    "voice_volume": 0.7,
+    "privacy_mode": false,
+    "haptic_feedback": true,
+    "display_brightness": 0.8,
+    "language": "en-US"
+  },
+  "thresholds": {
+    "fall_risk_alert": 0.7,
+    "stress_level_alert": 0.6,
+    "emotion_confidence_min": 0.5,
+    "inactivity_minutes": 60
+  },
+  "ai_models": {
+    "face_recognition": {
+      "path": "models/face_recognition_95_int8.tflite",
+      "accuracy_target": 0.95,
+      "confidence_threshold": 0.7
+    },
+    "face_emotion": {
+      "path": "models/face_emotion_95_int8.tflite",
+      "accuracy_target": 0.95,
+      "temporal_voting_frames": 15
+    },
+    "voice_emotion": {
+      "path": "models/voice_emotion_optimized_int8.tflite",
+      "accuracy_target": 0.95,
+      "window_seconds": 3
+    },
+    "gait_analysis": {
+      "path": "models/gait_analyzer_int8.tflite",
+      "sampling_rate_hz": 50
+    }
+  },
+  "safety_zones": [
+    {
+      "name": "Home",
+      "latitude": 0.0,
+      "longitude": 0.0,
+      "radius_meters": 100,
+      "alert_on_exit": true
+    }
+  ],
+  "reporting": {
+    "daily_report_enabled": true,
+    "report_time": "23:00",
+    "export_path": "reports/",
+    "include_emotion_history": true,
+    "include_interaction_log": true
+  }
+}

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="glass-card" style="max-width: 500px; margin: 2rem auto; padding: 2rem;">
+    <h2>Register</h2>
+    <form action="{{ url_for('register') }}" method="POST">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required pattern="[a-zA-Z0-9_]+"
+            title="Username can only contain letters, numbers, and underscores (_). No spaces allowed.">
+        <small style="color: var(--text-muted); display: block; margin-top: -0.5rem; margin-bottom: 1rem;">
+            Only letters, numbers, and underscore (_). No spaces.
+        </small>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required minlength="8"
+            pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
+            title="Password must contain at least 8 characters, including uppercase, lowercase, number, and special character (@$!%*?&)">
+        <small style="color: var(--text-muted); display: block; margin-top: -0.5rem; margin-bottom: 1rem;">
+            Min 8 characters: uppercase, lowercase, number, and symbol (@$!%*?&)
+        </small>
+
+        <label for="role">Role</label>
+        <select id="role" name="role" onchange="toggleFields()">
+            <option value="caregiver">Caregiver</option>
+            <option value="patient">Patient</option>
+        </select>
+
+        <div id="caregiverFields">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="+1234567890">
+
+            <label for="email">Email (for alerts)</label>
+            <input type="email" id="email" name="email" placeholder="your@email.com">
+        </div>
+
+        <div id="patientFields" style="display: none;">
+            <label for="patient_phone">Phone Number</label>
+            <input type="tel" id="patient_phone" name="patient_phone" placeholder="+1234567890">
+
+            <label for="patient_email">Email (for alerts)</label>
+            <input type="email" id="patient_email" name="patient_email" placeholder="your@email.com">
+
+            <p style="font-size: 0.9rem; color: var(--text-muted);">After registration, you will need to be linked by a
+                caregiver.</p>
+        </div>
+
+        <button type="submit" class="btn-primary" style="width: 100%;">Create Account</button>
+    </form>
+</div>
+<script>
+    function toggleFields() {
+        const role = document.getElementById('role').value;
+        const pFields = document.getElementById('patientFields');
+        const cFields = document.getElementById('caregiverFields');
+        if (role === 'patient') {
+            pFields.style.display = 'block';
+            cFields.style.display = 'none';
+        } else {
+            pFields.style.display = 'none';
+            cFields.style.display = 'block';
+        }
+    }
+
+    // Real-time validation feedback
+    document.getElementById('username').addEventListener('input', function (e) {
+        const username = e.target.value;
+        const isValid = /^[a-zA-Z0-9_]+$/.test(username);
+
+        if (username && !isValid) {
+            e.target.setCustomValidity('Username can only contain letters, numbers, and underscores (_)');
+        } else {
+            e.target.setCustomValidity('');
+        }
+    });
+
+    document.getElementById('password').addEventListener('input', function (e) {
+        const password = e.target.value;
+        const hasUpper = /[A-Z]/.test(password);
+        const hasLower = /[a-z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        const hasSymbol = /[@$!%*?&]/.test(password);
+        const isLongEnough = password.length >= 8;
+
+        let message = '';
+        if (!isLongEnough) message += 'At least 8 characters. ';
+        if (!hasUpper) message += 'Need uppercase letter. ';
+        if (!hasLower) message += 'Need lowercase letter. ';
+        if (!hasNumber) message += 'Need number. ';
+        if (!hasSymbol) message += 'Need symbol (@$!%*?&). ';
+
+        e.target.setCustomValidity(message);
+    });
+</script>
+{% endblock %}

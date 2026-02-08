@@ -1,0 +1,806 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-grid" style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;">
+    <!-- Sidebar / Patient List -->
+    <aside>
+        <div class="glass-card">
+            <h3>My Patients</h3>
+            <ul style="list-style: none;">
+                {% for p in patients %}
+                <li style="margin-bottom: 0.5rem;">
+                    <button class="btn-outline" style="width: 100%; text-align: left;"
+                        onclick="loadPatient('{{ p.id }}')">
+                        {{ p.name }}
+                        <span style="font-size: 0.8em; color: var(--text-muted);">{{ p.relationship_type }}</span>
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+            <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="openAddPatientModal()">Add
+                Patient (Link)</button>
+        </div>
+
+        <div class="glass-card">
+            <h3>Alerts</h3>
+            <ul id="alert-list">
+                {% for alert in alerts %}
+                <li class="alert-item priority-{{ alert.priority }}">
+                    <strong>{{ alert.alert_type }}</strong>: {{ alert.message }}
+                    <br><small>{{ alert.created_date }}</small>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main id="patient-view" style="display: none;">
+        <div class="glass-card">
+            <h2 id="p-name">Patient Name</h2>
+            <div id="p-status" class="alert-badge alert-success">Status: OK</div>
+        </div>
+
+        <!-- Map & Safety Zones Section -->
+        <div class="glass-card">
+            <h3>Location & Safety Zones</h3>
+            <div id="map" class="map-container"></div>
+            <p id="location-text" style="margin-top: 0.5rem; color: var(--text-muted);">Last updated: Never</p>
+
+            <!-- Safety Zones Management -->
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h4 style="margin-bottom: 1rem;">Safety Zones</h4>
+                <div id="safety-zones-list" style="margin-bottom: 1rem;">
+                    <!-- Zones will be listed here -->
+                </div>
+                <button class="btn-primary" onclick="startDrawingZone()" id="draw-zone-btn">
+                    + Add Safety Zone
+                </button>
+                <button class="btn-outline" onclick="cancelDrawingZone()" id="cancel-zone-btn"
+                    style="display:none; margin-left: 0.5rem;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <div class="grid-2-col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <!-- Reminders Management -->
+            <div class="glass-card">
+                <h3>Reminders</h3>
+                <ul id="reminder-list"></ul>
+                <form id="add-reminder-form" style="margin-top: 1rem;">
+                    <select id="reminder-type" required style="margin-bottom: 0.5rem;">
+                        <option value="">Select Type</option>
+                        <option value="medication">💊 Medication (Recurring)</option>
+                        <option value="appointment">📅 Appointment (One-time)</option>
+                    </select>
+
+                    <input type="text" id="rem-title" placeholder="Title" required style="margin-bottom: 0.5rem;">
+
+                    <!-- Medication Fields (Recurring) -->
+                    <div id="medication-fields" style="display:none;">
+                        <input type="time" id="med-time" style="margin-bottom: 0.5rem;">
+                        <select id="repeat-pattern" style="margin-bottom: 0.5rem;">
+                            <option value="daily">Every Day</option>
+                            <option value="weekly">Every Week</option>
+                            <option value="custom">Custom Days</option>
+                        </select>
+                        <div id="custom-days"
+                            style="display:none; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Mon"> Mon</label>
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Tue"> Tue</label>
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Wed"> Wed</label>
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Thu"> Thu</label>
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Fri"> Fri</label>
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Sat"> Sat</label>
+                            <label style="display: inline-block; margin-right: 0.5rem;"><input type="checkbox"
+                                    value="Sun"> Sun</label>
+                        </div>
+                    </div>
+
+                    <!-- Appointment Fields (One-time) -->
+                    <div id="appointment-fields" style="display:none;">
+                        <input type="datetime-local" id="appt-datetime" style="margin-bottom: 0.5rem;">
+                        <input type="text" id="appt-location" placeholder="Location (optional)"
+                            style="margin-bottom: 0.5rem;">
+                    </div>
+
+                    <button type="submit" class="btn-primary">Set Reminder</button>
+                </form>
+            </div>
+
+            <!-- Known Persons / Photos -->
+            <div class="glass-card">
+                <h3>Known Persons (Recognition)</h3>
+                <div id="known-persons-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">
+                    <!-- Photos go here -->
+                </div>
+                <form id="add-person-form" enctype="multipart/form-data"
+                    style="margin-top: 1rem; display: grid; gap: 0.75rem;">
+                    <input type="text" name="name" placeholder="Full Name" required>
+                    <input type="text" name="relationship" placeholder="Relationship (e.g., Daughter, Friend)" required>
+                    <input type="tel" name="phone" placeholder="Phone Number (optional)">
+                    <input type="email" name="email" placeholder="Email (optional)">
+                    <textarea name="notes" placeholder="Notes (e.g., Lives nearby, Call in emergency)"
+                        rows="2"></textarea>
+                    <label style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="checkbox" name="is_emergency_contact" value="true">
+                        <span>Emergency Contact</span>
+                    </label>
+                    <input type="file" name="image" required accept="image/*">
+                    <button type="submit" class="btn-primary">Add Known Person</button>
+                </form>
+            </div>
+
+            <!-- Patient Details Upload -->
+            <div class="glass-card">
+                <h3>Patient Details</h3>
+                <form id="add-patient-details-form" enctype="multipart/form-data" style="display: grid; gap: 0.75rem;">
+                    <input type="file" name="photo" accept="image/*" placeholder="Patient Photo">
+                    <input type="number" name="age" placeholder="Age" min="0" max="120">
+                    <input type="text" name="condition" placeholder="Medical Condition (e.g., Alzheimer's)">
+                    <textarea name="medical_history" placeholder="Medical History, Allergies, Medications..."
+                        rows="2"></textarea>
+                    <input type="text" name="emergency_contact" placeholder="Emergency Contact Name">
+                    <input type="tel" name="emergency_phone" placeholder="Emergency Phone">
+                    <button type="submit" class="btn-primary">Save Patient Details</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Gait & Emotion Logs -->
+        <div class="glass-card">
+            <h3>Activity Logs</h3>
+            <canvas id="activityChart"></canvas>
+            <table style="width: 100%; margin-top: 1rem;">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="empty-state" class="glass-card" style="text-align: center; padding: 4rem;">
+        <h2>Select a patient to view details</h2>
+        <p>Manage care, view location, and configure alerts.</p>
+    </div>
+</div>
+
+<!-- Add Patient Modal -->
+<div id="addPatientModal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="glass-card" style="max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <h2>Link Patient to Your Care</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Select an existing patient to add to your dashboard
+        </p>
+
+        <div id="patientListContainer" style="margin-bottom: 1rem;">
+            <input type="text" id="patientSearchInput" placeholder="Search patients..."
+                style="width: 100%; margin-bottom: 1rem;" onkeyup="filterPatients()">
+            <div id="patientList" style="max-height: 300px; overflow-y: auto;">
+                <!-- Patient list will be populated here -->
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+            <button class="btn-outline" style="flex: 1;" onclick="closeAddPatientModal()">Cancel</button>
+            <button class="btn-primary" style="flex: 1;" onclick="linkSelectedPatient()" id="linkPatientBtn"
+                disabled>Link Patient</button>
+        </div>
+    </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script>
+    let currentPatientId = null;
+    let map = null;
+    let marker = null;
+    let drawnItems = null;
+    let drawControl = null;
+    let isDrawingZone = false;
+    let safetyZones = [];
+
+    function initMap() {
+        if (!map) {
+            map = L.map('map').setView([51.505, -0.09], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+        }
+    }
+
+    async function loadPatient(id) {
+        currentPatientId = id;
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('patient-view').style.display = 'block';
+
+        // Enable forms now that patient is selected
+        enableForms();
+
+        // Init map if visible
+        setTimeout(initMap, 100);
+
+        // Fetch Data
+        fetchLocation();
+        fetchReminders();
+        fetchKnownPersons();
+        fetchLogs();
+        fetchSafetyZones();
+
+        // Start polling
+        if (window.pollInterval) clearInterval(window.pollInterval);
+        window.pollInterval = setInterval(() => {
+            fetchLocation();
+        }, 30000); // 30s poll
+    }
+
+    // ===== Patient Details Upload =====
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Patient Details Form Handler
+        document.getElementById('add-patient-details-form').onsubmit = async (e) => {
+            e.preventDefault();
+
+            if (!currentPatientId) {
+                alert('Please select a patient first');
+                return;
+            }
+
+            const formData = new FormData(e.target);
+
+            try {
+                // First upload photo if provided
+                const photoFile = formData.get('photo');
+                if (photoFile && photoFile.size > 0) {
+                    const photoFormData = new FormData();
+                    photoFormData.append('photo', photoFile);
+
+                    const photoRes = await fetch(`/api/patient/${currentPatientId}/profile/photo`, {
+                        method: 'POST',
+                        body: photoFormData
+                    });
+
+                    if (!photoRes.ok) {
+                        const error = await photoRes.json();
+                        alert(`Failed to upload photo: ${error.error}`);
+                        return;
+                    }
+                }
+
+                // Then update profile details
+                const profileData = {
+                    age: formData.get('age'),
+                    condition: formData.get('condition'),
+                    medical_history: formData.get('medical_history'),
+                    emergency_contact: formData.get('emergency_contact'),
+                    emergency_phone: formData.get('emergency_phone')
+                };
+
+                const res = await fetch(`/api/patient/${currentPatientId}/profile`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(profileData)
+                });
+
+                if (res.ok) {
+                    alert('Patient details saved successfully!');
+                    e.target.reset();
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to save details: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error saving patient details:', error);
+                alert('Failed to save patient details. Please try again.');
+            }
+        };
+
+        // Reminder type selector
+        document.getElementById('reminder-type').onchange = function () {
+            const type = this.value;
+            document.getElementById('medication-fields').style.display = type === 'medication' ? 'block' : 'none';
+            document.getElementById('appointment-fields').style.display = type === 'appointment' ? 'block' : 'none';
+        };
+
+        // Repeat pattern selector
+        document.getElementById('repeat-pattern').onchange = function () {
+            document.getElementById('custom-days').style.display = this.value === 'custom' ? 'block' : 'none';
+        };
+    });
+
+    // ===== Safety Zone Management =====
+
+    async function fetchSafetyZones() {
+        if (!currentPatientId) return;
+        try {
+            const res = await fetch(`/api/patient/${currentPatientId}/safety_zones`);
+            safetyZones = await res.json();
+            displaySafetyZones();
+        } catch (error) {
+            console.error('Error fetching safety zones:', error);
+        }
+    }
+
+    function displaySafetyZones() {
+        const listContainer = document.getElementById('safety-zones-list');
+
+        if (safetyZones.length === 0) {
+            listContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem;">No safety zones defined</p>';
+            return;
+        }
+
+        // Clear existing zones from map
+        if (drawnItems) {
+            drawnItems.clearLayers();
+        } else {
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+        }
+
+        listContainer.innerHTML = safetyZones.map(zone => {
+            // Draw zone on map
+            const circle = L.circle([zone.center_lat, zone.center_lon], {
+                radius: zone.radius_meters,
+                color: zone.zone_type === 'safe' ? '#10b981' : zone.zone_type === 'restricted' ? '#ef4444' : '#f59e0b',
+                fillOpacity: 0.2
+            }).addTo(drawnItems);
+
+            circle.bindPopup(`<strong>${zone.name}</strong><br>Type: ${zone.zone_type}<br>Radius: ${zone.radius_meters}m`);
+
+            return `
+                <div style="padding: 0.75rem; margin-bottom: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>${zone.name}</strong>
+                        <br><small style="color: var(--text-muted);">${zone.zone_type} • ${zone.radius_meters}m radius</small>
+                    </div>
+                    <button class="btn-outline" style="padding: 0.25rem 0.75rem; font-size: 0.85rem;" onclick="deleteSafetyZone(${zone.id})">Delete</button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function startDrawingZone() {
+        if (!map) {
+            alert('Map not initialized');
+            return;
+        }
+
+        isDrawingZone = true;
+        document.getElementById('draw-zone-btn').style.display = 'none';
+        document.getElementById('cancel-zone-btn').style.display = 'inline-block';
+
+        // Enable drawing
+        if (!drawnItems) {
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+        }
+
+        drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems },
+            draw: {
+                polygon: false,
+                polyline: false,
+                rectangle: false,
+                marker: false,
+                circlemarker: false,
+                circle: {
+                    shapeOptions: {
+                        color: '#10b981',
+                        fillOpacity: 0.2
+                    }
+                }
+            }
+        });
+        map.addControl(drawControl);
+
+        // Handle zone creation
+        map.on(L.Draw.Event.CREATED, async function (e) {
+            const layer = e.layer;
+            const latlng = layer.getLatLng();
+            const radius = layer.getRadius();
+
+            const zoneName = prompt('Enter zone name:');
+            if (!zoneName) {
+                cancelDrawingZone();
+                return;
+            }
+
+            const zoneType = prompt('Enter zone type (safe/restricted/alert):', 'safe');
+
+            try {
+                const res = await fetch(`/api/patient/${currentPatientId}/safety_zones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: zoneName,
+                        center_lat: latlng.lat,
+                        center_lon: latlng.lng,
+                        radius_meters: Math.round(radius),
+                        zone_type: zoneType
+                    })
+                });
+
+                if (res.ok) {
+                    alert('Safety zone created successfully!');
+                    fetchSafetyZones();
+                    cancelDrawingZone();
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to create zone: ${error.error}`);
+                }
+            } catch (error) {
+                console.error('Error creating safety zone:', error);
+                alert('Failed to create zone. Please try again.');
+            }
+        });
+    }
+
+    function cancelDrawingZone() {
+        isDrawingZone = false;
+        document.getElementById('draw-zone-btn').style.display = 'inline-block';
+        document.getElementById('cancel-zone-btn').style.display = 'none';
+
+        if (drawControl) {
+            map.removeControl(drawControl);
+            drawControl = null;
+        }
+
+        map.off(L.Draw.Event.CREATED);
+    }
+
+    async function deleteSafetyZone(zoneId) {
+        if (!confirm('Are you sure you want to delete this safety zone?')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/patient/${currentPatientId}/safety_zones/${zoneId}`, {
+                method: 'DELETE'
+            });
+
+            if (res.ok) {
+                alert('Safety zone deleted successfully!');
+                fetchSafetyZones();
+            } else {
+                const error = await res.json();
+                alert(`Failed to delete zone: ${error.error}`);
+            }
+        } catch (error) {
+            console.error('Error deleting safety zone:', error);
+            alert('Failed to delete zone. Please try again.');
+        }
+    }
+
+    function enableForms() {
+        // Enable reminder form
+        const reminderInputs = document.querySelectorAll('#add-reminder-form input, #add-reminder-form button');
+        reminderInputs.forEach(input => input.disabled = false);
+
+        // Enable person form
+        const personInputs = document.querySelectorAll('#add-person-form input, #add-person-form button');
+        personInputs.forEach(input => input.disabled = false);
+    }
+
+    function disableForms() {
+        // Disable reminder form
+        const reminderInputs = document.querySelectorAll('#add-reminder-form input, #add-reminder-form button');
+        reminderInputs.forEach(input => input.disabled = true);
+
+        // Disable person form
+        const personInputs = document.querySelectorAll('#add-person-form input, #add-person-form button');
+        personInputs.forEach(input => input.disabled = true);
+    }
+
+    // Disable forms on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        disableForms();
+    });
+
+
+    async function fetchLocation() {
+        if (!currentPatientId) return;
+        const res = await fetch(`/api/patient/${currentPatientId}/location`);
+        const data = await res.json();
+        if (data.lat) {
+            const loc = [data.lat, data.lon];
+            map.setView(loc, 15);
+            if (marker) marker.setLatLng(loc);
+            else marker = L.marker(loc).addTo(map);
+            document.getElementById('location-text').innerText = `Last updated: ${data.timestamp}`;
+        }
+    }
+
+    async function fetchReminders() {
+        const res = await fetch(`/api/patient/${currentPatientId}/reminders`);
+        const data = await res.json();
+        const list = document.getElementById('reminder-list');
+        list.innerHTML = data.map(r => {
+            const icon = r.reminder_type === 'medication' ? '💊' : '📅';
+            const badge = r.reminder_type === 'medication' ?
+                '<span style="background: #3b82f6; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">Recurring</span>' :
+                '<span style="background: #10b981; padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">One-time</span>';
+
+            return `<li style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                ${icon} <strong>${r.title}</strong> ${badge}
+                <br><small style="color: var(--text-muted);">${new Date(r.scheduled_time).toLocaleString()}</small>
+            </li>`;
+        }).join('');
+    }
+
+    async function fetchKnownPersons() {
+        const res = await fetch(`/api/patient/${currentPatientId}/known_persons`);
+        const data = await res.json();
+        const grid = document.getElementById('known-persons-grid');
+        grid.innerHTML = data.map(p => `
+            <div style="text-align: center;">
+                <img src="/static/uploads/${currentPatientId}/${p.photo_path ? p.photo_path.split('\\').pop() : 'default.jpg'}" 
+                     style="width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 0.5rem;">
+                <small>${p.name}</small>
+            </div>
+        `).join('');
+    }
+
+    async function fetchLogs() {
+        const res = await fetch(`/api/patient/${currentPatientId}/logs`);
+        const data = await res.json();
+        const tbody = document.getElementById('logs-table');
+        tbody.innerHTML = data.slice(0, 10).map(l => `
+            <tr>
+                <td>${new Date(l.timestamp).toLocaleTimeString()}</td>
+                <td>${l.log_type}</td>
+                <td>${l.severity_level > 5 ? '<span style="color:red">High</span>' : 'Normal'}</td>
+            </tr>
+        `).join('');
+    }
+
+    // Form Handlers
+    document.getElementById('add-reminder-form').onsubmit = async (e) => {
+        e.preventDefault();
+
+        // Check if patient is selected
+        if (!currentPatientId) {
+            alert('Please select a patient first from the "My Patients" list on the left.');
+            return;
+        }
+
+        const reminderType = document.getElementById('reminder-type').value;
+        const title = document.getElementById('rem-title').value;
+
+        if (!reminderType) {
+            alert('Please select a reminder type');
+            return;
+        }
+
+        let reminderData = {
+            title: title,
+            type: reminderType
+        };
+
+        // Build data based on reminder type
+        if (reminderType === 'medication') {
+            const time = document.getElementById('med-time').value;
+            const repeatPattern = document.getElementById('repeat-pattern').value;
+
+            if (!time) {
+                alert('Please select a time for the medication reminder');
+                return;
+            }
+
+            // Create scheduled_time from today's date + time
+            const today = new Date();
+            const [hours, minutes] = time.split(':');
+            today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            reminderData.scheduled_time = today.toISOString();
+
+            // Build repeat pattern
+            if (repeatPattern === 'custom') {
+                const checkboxes = document.querySelectorAll('#custom-days input[type="checkbox"]:checked');
+                const days = Array.from(checkboxes).map(cb => cb.value);
+                if (days.length === 0) {
+                    alert('Please select at least one day for custom pattern');
+                    return;
+                }
+                reminderData.repeat_pattern = JSON.stringify({ type: 'custom', days: days });
+            } else {
+                reminderData.repeat_pattern = JSON.stringify({ type: repeatPattern });
+            }
+        } else if (reminderType === 'appointment') {
+            const datetime = document.getElementById('appt-datetime').value;
+            const location = document.getElementById('appt-location').value;
+
+            if (!datetime) {
+                alert('Please select a date and time for the appointment');
+                return;
+            }
+
+            reminderData.scheduled_time = new Date(datetime).toISOString();
+            reminderData.description = location ? `Location: ${location}` : '';
+            reminderData.repeat_pattern = null; // One-time only
+        }
+
+        try {
+            const response = await fetch(`/api/patient/${currentPatientId}/reminders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reminderData)
+            });
+
+            if (response.ok) {
+                // Clear form
+                document.getElementById('rem-title').value = '';
+                document.getElementById('reminder-type').value = '';
+                document.getElementById('med-time').value = '';
+                document.getElementById('appt-datetime').value = '';
+                document.getElementById('appt-location').value = '';
+                document.getElementById('medication-fields').style.display = 'none';
+                document.getElementById('appointment-fields').style.display = 'none';
+
+                // Refresh reminders list
+                fetchReminders();
+                alert('Reminder set successfully!');
+            } else {
+                const error = await response.json();
+                alert(`Failed to set reminder: ${error.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error setting reminder:', error);
+            alert('Failed to set reminder. Please try again.');
+        }
+    };
+
+    document.getElementById('add-person-form').onsubmit = async (e) => {
+        e.preventDefault();
+
+        // Check if patient is selected
+        if (!currentPatientId) {
+            alert('Please select a patient first from the "My Patients" list on the left.');
+            return;
+        }
+
+        const formData = new FormData(e.target);
+
+        try {
+            const response = await fetch(`/api/patient/${currentPatientId}/known_persons`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                // Clear form
+                e.target.reset();
+                // Refresh known persons list
+                fetchKnownPersons();
+                alert('Face alert uploaded successfully!');
+            } else {
+                const error = await response.json();
+                alert(`Failed to upload face alert: ${error.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error uploading face alert:', error);
+            alert('Failed to upload face alert. Please try again.');
+        }
+    };
+
+
+    // Add Patient Modal Functions
+    let selectedPatientId = null;
+    let availablePatients = [];
+
+    async function openAddPatientModal() {
+        document.getElementById('addPatientModal').style.display = 'flex';
+        await loadAvailablePatients();
+    }
+
+    function closeAddPatientModal() {
+        document.getElementById('addPatientModal').style.display = 'none';
+        selectedPatientId = null;
+        document.getElementById('linkPatientBtn').disabled = true;
+    }
+
+    async function loadAvailablePatients() {
+        try {
+            const res = await fetch('/api/patients/available');
+            availablePatients = await res.json();
+            displayPatientList(availablePatients);
+        } catch (error) {
+            console.error('Error loading patients:', error);
+            document.getElementById('patientList').innerHTML = '<p style="color: red;">Error loading patients</p>';
+        }
+    }
+
+    function displayPatientList(patients) {
+        const listContainer = document.getElementById('patientList');
+        if (patients.length === 0) {
+            listContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No patients available</p>';
+            return;
+        }
+
+        listContainer.innerHTML = patients.map(p => `
+            <div class="patient-item" style="padding: 1rem; margin-bottom: 0.5rem; border: 2px solid transparent; border-radius: 0.5rem; cursor: pointer; transition: all 0.2s;"
+                 onclick="selectPatient(${p.id})" id="patient-item-${p.id}">
+                <strong>${p.name}</strong>
+                <br><small style="color: var(--text-muted);">ID: ${p.id}</small>
+            </div>
+        `).join('');
+    }
+
+    function selectPatient(patientId) {
+        selectedPatientId = patientId;
+
+        // Update UI to show selection
+        document.querySelectorAll('.patient-item').forEach(item => {
+            item.style.border = '2px solid transparent';
+            item.style.background = 'transparent';
+        });
+
+        const selectedItem = document.getElementById(`patient-item-${patientId}`);
+        if (selectedItem) {
+            selectedItem.style.border = '2px solid var(--accent)';
+            selectedItem.style.background = 'rgba(99, 102, 241, 0.1)';
+        }
+
+        document.getElementById('linkPatientBtn').disabled = false;
+    }
+
+    function filterPatients() {
+        const searchTerm = document.getElementById('patientSearchInput').value.toLowerCase();
+        const filtered = availablePatients.filter(p =>
+            p.name.toLowerCase().includes(searchTerm) ||
+            p.id.toString().includes(searchTerm)
+        );
+        displayPatientList(filtered);
+    }
+
+    async function linkSelectedPatient() {
+        if (!selectedPatientId) return;
+
+        const linkBtn = document.getElementById('linkPatientBtn');
+        linkBtn.disabled = true;
+        linkBtn.textContent = 'Linking...';
+
+        try {
+            const res = await fetch('/api/caregiver/link_patient', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    patient_id: selectedPatientId,
+                    relationship_type: 'Primary'
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert(`Successfully linked patient: ${data.patient_name}`);
+                closeAddPatientModal();
+                // Reload page to show new patient
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.error}`);
+                linkBtn.disabled = false;
+                linkBtn.textContent = 'Link Patient';
+            }
+        } catch (error) {
+            console.error('Error linking patient:', error);
+            alert('Failed to link patient. Please try again.');
+            linkBtn.disabled = false;
+            linkBtn.textContent = 'Link Patient';
+        }
+    }
+
+</script>
+{% endblock %}
